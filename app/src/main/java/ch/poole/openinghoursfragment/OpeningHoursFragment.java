@@ -14,50 +14,36 @@ import ch.poole.openinghoursparser.YearRange;
 
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.Calendar;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.content.Context;
-import android.content.Intent;
 import android.os.Bundle;
-import android.util.AttributeSet;
+import android.support.v7.app.AppCompatActivity;
+import android.support.v7.app.AppCompatDialogFragment;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
+import android.view.Menu;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewParent;
-import android.widget.AdapterView;
-import android.widget.AdapterView.OnItemSelectedListener;
-import android.widget.ArrayAdapter;
-import android.widget.AutoCompleteTextView;
+import android.view.ViewStub;
+import android.widget.Button;
 import android.widget.CheckBox;
-import android.widget.CompoundButton;
-import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.EditText;
-import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.LinearLayout.LayoutParams;
 import android.widget.NumberPicker;
 import android.widget.ScrollView;
-import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
-import com.actionbarsherlock.app.SherlockDialogFragment;
-import com.actionbarsherlock.app.SherlockFragment;
-import com.actionbarsherlock.app.SherlockFragmentActivity;
-import com.actionbarsherlock.view.Menu;
-import com.actionbarsherlock.view.MenuInflater;
-import com.actionbarsherlock.view.MenuItem;
+import com.touchboarder.weekdaysbuttons.WeekdaysDataItem;
+import com.touchboarder.weekdaysbuttons.WeekdaysDataSource;
 
 
-public class OpeningHoursFragment extends SherlockDialogFragment {
+public class OpeningHoursFragment extends AppCompatDialogFragment {
 	
 	private static final String DEBUG_TAG = OpeningHoursFragment.class.getSimpleName();
 	
@@ -99,12 +85,10 @@ public class OpeningHoursFragment extends SherlockDialogFragment {
 	@Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
             Bundle savedInstanceState) {
-		LinearLayout openingHoursLayout = null;
-
 
     	// Inflate the layout for this fragment
     	this.inflater = inflater;
-    	openingHoursLayout = (LinearLayout) inflater.inflate(R.layout.openinghours,null);
+		LinearLayout openingHoursLayout = (LinearLayout) inflater.inflate(R.layout.openinghours,null);
 
 //    	if (savedInstanceState != null) {
 //    		Log.d(DEBUG_TAG,"Restoring from saved state");
@@ -155,10 +139,10 @@ public class OpeningHoursFragment extends SherlockDialogFragment {
 			//
 			OpeningHoursParser parser = new OpeningHoursParser(new ByteArrayInputStream(openingHoursValue.getBytes()));
 			try {
-				ArrayList<Rule> rules = parser.rules();
-				ArrayList<ArrayList<Rule>> mergeableRules = Util.getMergeableRules(rules);
+				final ArrayList<Rule> rules = parser.rules();
+				final ArrayList<ArrayList<Rule>> mergeableRules = Util.getMergeableRules(rules);
 				int n = 1;
-				for (ArrayList<Rule>ruleList:mergeableRules)
+				for (final ArrayList<Rule>ruleList:mergeableRules)
 				{
 					boolean first = true;
 					for (Rule r : ruleList)
@@ -168,37 +152,38 @@ public class OpeningHoursFragment extends SherlockDialogFragment {
 							header.setText("Rule " + n);
 							header.setTextSize(24.0f);
 							ll.addView(header);
+
 							String comment = r.getComment();
 							if (comment != null && comment.length() > 0) {
 								TextView tv = new TextView(getActivity());
 								tv.setText(comment);
 								ll.addView(tv);
 							}
+
 							// year range list
 							ArrayList<YearRange> years = r.getYears();
 							LinearLayout yearLayout = new LinearLayout(getActivity());
-							yearLayout.setOrientation(LinearLayout.HORIZONTAL);;
+							yearLayout.setOrientation(LinearLayout.HORIZONTAL);
 							ll.addView(yearLayout);
 							if (years != null && years.size() > 0) {
-								
-								StringBuffer b = new StringBuffer();
+
 								for (YearRange yr:years) {
 									// NumberPicker np1 = getYearPicker(yr.getStartYear());
 									EditText np1 = new EditText(getActivity());
 									np1.setText(Integer.toString(yr.getStartYear()));
 									int endYear = yr.getEndYear();
 									if (endYear < 0) {
-										endYear = yr.getStartYear();
-									}
+                                        endYear = yr.getStartYear();
+                                    }
 									// NumberPicker np2 = getYearPicker(endYear);
 									EditText np2 = new EditText(getActivity());
 									np2.setText(Integer.toString(endYear));
 									yearLayout.addView(np1);
 									yearLayout.addView(dash);
 									yearLayout.addView(np2);
-									if (years.get(years.size()-1)!=yr) {
-										yearLayout.addView(comma);
-									} 
+									if (!(years.get(years.size()-1)==yr)) {
+                                        yearLayout.addView(comma);
+                                    }
 								}
 							}
 							// week list
@@ -209,7 +194,7 @@ public class OpeningHoursFragment extends SherlockDialogFragment {
 									b.append(wr.toString());
 									if (weeks.get(weeks.size()-1)!=wr) {
 										b.append(",");
-									} 
+									}
 								}
 								TextView tv = new TextView(getActivity());
 								tv.setText(b.toString());
@@ -262,16 +247,9 @@ public class OpeningHoursFragment extends SherlockDialogFragment {
 						// day list
 						ArrayList<WeekDayRange> days = r.getDays();
 						if (days != null && days.size() > 0){
-							StringBuffer b = new StringBuffer();
 							for (WeekDayRange d:days) {
-								b.append(d.toString());
-								if (days.get(days.size()-1)!=d) {
-									b.append(",");
-								} 
+								addWeekDayRange(d, ll, r);
 							}
-							TextView tv = new TextView(getActivity());
-							tv.setText(b.toString());
-							ll.addView(tv);
 						}
 						// times
 						ArrayList<TimeSpan> times = r.getTimes();
@@ -288,6 +266,27 @@ public class OpeningHoursFragment extends SherlockDialogFragment {
 							ll.addView(tv);
 						}
 					}
+					Button deleteButton = new Button(getActivity());
+					deleteButton.setText(R.string.delete_rule);
+					deleteButton.setOnClickListener(new View.OnClickListener() {
+						@Override
+						public void onClick(View v) {
+							mergeableRules.remove(ruleList);
+							updateRules(mergeableRules);
+						}
+					});
+					ll.addView(deleteButton);
+
+					Button addButton = new Button(getActivity());
+					addButton.setText(R.string.add_rule);
+					addButton.setOnClickListener(new View.OnClickListener() {
+						@Override
+						public void onClick(View v) {
+							mergeableRules.add(mergeableRules.indexOf(ruleList), new ArrayList<Rule>());
+							updateRules(mergeableRules);
+						}
+					});
+					ll.addView(addButton);
 				}
 			} catch (ParseException e) {
 				// TODO Auto-generated catch block
@@ -295,8 +294,58 @@ public class OpeningHoursFragment extends SherlockDialogFragment {
 			}
 		}
 	}
-    
-    @SuppressLint("NewApi")
+
+	private void addWeekDayRange(WeekDayRange d, LinearLayout ll, final Rule r) {
+		ViewStub viewStub = new ViewStub(getActivity());
+		viewStub.setId(R.id.weekdays_stub);
+		ll.addView(viewStub);
+		final WeekdaysDataSource weekdaysDataSource = new WeekdaysDataSource((AppCompatActivity) getActivity(), R.id.weekdays_stub);
+		weekdaysDataSource.start(new WeekdaysDataSource.Callback() {
+					@Override
+					public void onWeekdaysItemClicked(int attachId, WeekdaysDataItem item) {
+
+					}
+
+					@Override
+					public void onWeekdaysSelected(int attachId, ArrayList<WeekdaysDataItem> items) {
+						weekdaysDataItemsToWeekDayRange(items, r);
+					}
+				});
+	}
+
+	private void weekdaysDataItemsToWeekDayRange(ArrayList<WeekdaysDataItem> items, Rule rule) {
+		ArrayList<WeekDayRange> days = new ArrayList<>();
+		for (WeekdaysDataItem item: items) {
+			WeekDayRange dayRange = new WeekDayRange();
+			if (item.isSelected()){
+				dayRange.setStartDay(item.getLabel());
+			}
+			days.add(dayRange);
+		}
+		rule.setDays(days);
+	}
+
+	private void updateRules(ArrayList<ArrayList<Rule>> mergeableRules) {
+		Log.d(OpeningHoursFragment.class.getSimpleName(), openingHoursValue);
+		String newOpeningHours = mergeableRulesToString(mergeableRules);
+		Log.d(OpeningHoursFragment.class.getSimpleName(), newOpeningHours);
+		LinearLayout openingHoursLayout = (LinearLayout) getView().findViewById(R.id.openinghours_layout);
+		buildForm(openingHoursLayout, newOpeningHours);
+	}
+
+	private String mergeableRulesToString(ArrayList<ArrayList<Rule>> mergeableRules) {
+		StringBuilder b = new StringBuilder();
+		for (ArrayList<Rule> ruleList: mergeableRules) {
+			for (Rule r: ruleList) {
+				b.append(r);
+			}
+			b.append(";");
+		}
+		b.delete(b.length() -2, b.length() - 1);
+		return b.toString();
+	}
+
+	@SuppressLint("NewApi")
 	NumberPicker getYearPicker(int year) {
     	NumberPicker np = new NumberPicker(getActivity());
 		np.setMinValue(1900);
@@ -339,39 +388,10 @@ public class OpeningHoursFragment extends SherlockDialogFragment {
     	Log.d(DEBUG_TAG, "onDestroy");
     }
 	
-
-
-	
 	@Override
 	public void onPrepareOptionsMenu(Menu menu) {
 		super.onPrepareOptionsMenu(menu);
 		// disable address tagging for stuff that won't have an address
 		// menu.findItem(R.id.tag_menu_address).setVisible(!type.equals(Way.NAME) || element.hasTagKey(Tags.KEY_BUILDING));
-	}
-	
-	/**
-	 * Return the view we have our rows in and work around some android craziness
-	 * @return
-	 */
-	public View getOurView() {
-		// android.support.v4.app.NoSaveStateFrameLayout
-		View v =  getView();	
-		if (v != null) {
-			if ( v.getId() == R.id.openinghours_layout) {
-				Log.d(DEBUG_TAG,"got correct view in getView");
-				return v;
-			} else {
-				v = v.findViewById(R.id.openinghours_layout);
-				if (v == null) {
-					Log.d(DEBUG_TAG,"didn't find R.id.openinghours_layout");
-				}  else {
-					Log.d(DEBUG_TAG,"Found R.id.openinghours_layoutt");
-				}
-				return v;
-			}
-		} else {
-			Log.d(DEBUG_TAG,"got null view in getView");
-		}
-		return null;
 	}
 }
