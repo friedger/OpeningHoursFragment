@@ -297,9 +297,10 @@ public class OpeningHoursFragment extends AppCompatDialogFragment {
 
 	private void addWeekDayRange(WeekDayRange d, LinearLayout ll, final Rule r) {
 		ViewStub viewStub = new ViewStub(getActivity());
+		viewStub.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 150));
 		viewStub.setId(R.id.weekdays_stub);
 		ll.addView(viewStub);
-		final WeekdaysDataSource weekdaysDataSource = new WeekdaysDataSource((AppCompatActivity) getActivity(), R.id.weekdays_stub);
+		final WeekdaysDataSource weekdaysDataSource = new WeekdaysDataSource((AppCompatActivity) getActivity(), R.id.weekdays_stub, ll);
 		weekdaysDataSource.start(new WeekdaysDataSource.Callback() {
 					@Override
 					public void onWeekdaysItemClicked(int attachId, WeekdaysDataItem item) {
